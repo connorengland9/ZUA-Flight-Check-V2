@@ -7,20 +7,24 @@ st.set_page_config(page_title="CE ZUA Flight Check Tool", layout="centered")
 
 page_bg_css = """
 <style>
+/* Custom Black Background with Cross-Hatch and Diagonal "CE" */
 .stApp {
     background-color: #0b0b0b !important;
     background-image: url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg stroke='rgba(255,255,255,0.04)' stroke-width='1'%3E%3Cpath d='M0 0l120 120M120 0L0 120'/%3E%3C/g%3E%3Ctext x='60' y='68' font-family='Georgia, serif' font-size='24' font-style='italic' font-weight='bold' fill='rgba(255,255,255,0.06)' text-anchor='middle' transform='rotate(-45 60 60)'%3ECE%3C/text%3E%3C/g%3E%3C/svg%3E") !important;
     background-repeat: repeat !important;
 }
 
+/* Center all main text and headers */
 .block-container {
     text-align: center;
 }
 
+/* Force standard text to white so it doesn't turn black in Light Mode */
 h1, h2, h3, p {
     color: #ffffff !important;
 }
 
+/* --- UPLOADER BOX OVERRIDE --- */
 [data-testid="stFileUploadDropzone"] {
     background-color: #1a1a1a !important;
     border: 2px dashed #87CEFA !important;
@@ -42,6 +46,7 @@ h1, h2, h3, p {
     color: #0b0b0b !important;
 }
 
+/* --- DOWNLOAD BUTTONS OVERRIDE --- */
 [data-testid="stDownloadButton"] > button {
     margin: 0 auto;
     display: block;
@@ -59,6 +64,7 @@ h1, h2, h3, p {
     color: #0b0b0b !important;
 }
 
+/* Center the primary Generate button */
 .stButton > button {
     margin: 0 auto;
     display: block;
@@ -68,15 +74,14 @@ h1, h2, h3, p {
 st.markdown(page_bg_css, unsafe_allow_html=True)
 
 st.title("CE ZUA Flight Check Tool")
-st.write("Upload a raw FAA Flight Check PDF or Schedule Image to instantly generate outputs.")
+st.write("Upload the raw FAA Flight Check PDF to instantly generate the Overview Memo and Floor Briefing.")
 
 if 'files_ready' not in st.session_state:
     st.session_state.files_ready = False
 
 _, col_upload, _ = st.columns([1, 4, 1])
 with col_upload:
-    # EXPANDED: Now accepts PNG, JPG, and JPEG images alongside PDFs
-    uploaded_file = st.file_uploader("Upload Flight Check Document", type=["pdf", "png", "jpg", "jpeg"])
+    uploaded_file = st.file_uploader("Upload Flight Check PDF", type=["pdf"])
 
 if uploaded_file is not None:
     _, col_gen, _ = st.columns([1, 2, 1])
@@ -84,7 +89,7 @@ if uploaded_file is not None:
         generate_pressed = st.button("Generate Documents", type="primary", use_container_width=True)
         
     if generate_pressed:
-        with st.spinner("Processing document and generating documents... This might take a minute."):
+        with st.spinner("Processing PDF and generating documents... This might take a minute."):
             
             os.makedirs(main.INPUT_DIR, exist_ok=True)
             os.makedirs(main.OUTPUT_DIR, exist_ok=True)
@@ -97,7 +102,7 @@ if uploaded_file is not None:
                 f.write(uploaded_file.getbuffer())
             
             try:
-                main.process_uploaded_file(uploaded_file.name)
+                main.extract_filter_and_translate(uploaded_file.name)
                 
                 output_files = os.listdir(main.OUTPUT_DIR)
                 

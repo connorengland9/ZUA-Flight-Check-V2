@@ -42,7 +42,7 @@ TEST_TYPES = {
     "NDBH/N": "NDB Check"
 }
 
-# --- 3. ADVANCED MANEUVER MAPPING (UPDATED FOR ATC AUDIENCE) ---
+# --- 3. ADVANCED MANEUVER MAPPING ---
 MANEUVERS_MAP = {
     "ILS Localizer testing": [
         {
@@ -279,11 +279,6 @@ def create_floor_briefing(translated_results):
     doc = Document()
     
     doc.add_heading('ZUA Flight Check - Floor Briefing', 0)
-    
-    p = doc.add_paragraph()
-    p.add_run("Aircraft Information:\n").bold = True
-    p.add_run("Type: Challenger 605/650 (CL600)\nRegistration: N90\nRun Speed: 180-200 knots")
-    
     doc.add_paragraph("_" * 50)
     
     grouped_data = defaultdict(lambda: defaultdict(list))
@@ -378,14 +373,14 @@ def create_floor_briefing(translated_results):
     doc.save(output_path)
     print(f"Success! Floor Briefing saved to: {output_path}")
 
-# --- 6. FILTER & TRANSLATE ENGINE ---
+# --- 6. FILTER & TRANSLATE ENGINE (STABLE PDF OCR) ---
 def extract_filter_and_translate(pdf_filename):
     print(f"Opening {pdf_filename}...")
     file_path = os.path.join(INPUT_DIR, pdf_filename)
     doc = fitz.open(file_path)
     
     full_text = ""
-    print(f"Reading all {doc.page_count} pages... this might take a minute.")
+    print(f"Reading all {doc.page_count} pages...")
     
     for i in range(doc.page_count):
         page = doc.load_page(i)

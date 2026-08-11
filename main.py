@@ -10,12 +10,12 @@ from docx.shared import Inches, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from collections import defaultdict 
 
-# --- ROBUST TESSERACT PATH CONFIGURATION ---
-if os.name == 'nt':
+# --- TESSERACT SMART PATHFINDER ---
+tess_path = shutil.which("tesseract")
+if tess_path:
+    pytesseract.pytesseract.tesseract_cmd = tess_path
+elif os.name == 'nt':  
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-else:
-    # Explicitly point to the Linux binary path on Streamlit Cloud
-    pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
 
 # --- 1. SETUP ---
 INPUT_DIR = "Input"
@@ -23,7 +23,7 @@ OUTPUT_DIR = "Output"
 PHOTOS_DIR = "Photos"
 TEMPLATES_DIR = "Templates"
 
-ZUA_FACILITIES = ["PGUM", "PGUA", "PGRO", "PGWT", "PGSN", "AJA", "UNZ", "UAM", "GRO", "SN", "GUA"]
+ZUA_FACILITIES = ["PGUM", "PGUA", "PGRO", "PGWT", "PGSN", "AJA", "UNZ", "UAM", "GRO", "SN"]
 
 # --- 2. TEST TYPES ---
 TEST_TYPES = {
@@ -42,7 +42,7 @@ TEST_TYPES = {
     "NDBH/N": "NDB Check"
 }
 
-# --- 3. ADVANCED MANEUVER MAPPING ---
+# --- 3. ADVANCED MANEUVER MAPPING (UPDATED FOR ATC AUDIENCE) ---
 MANEUVERS_MAP = {
     "ILS Localizer testing": [
         {
@@ -198,15 +198,13 @@ def translate_operation(line, facility):
     if test_desc == "Unknown Testing":
         return None
         
-    clean_facility = "PGUA" if facility == "GUA" else facility
-    
     runway = ""
     rwy_match = re.search(r'(?<![\.\/])\b([0O][1-9]|[1-2][0-9]|3[0-6])[LRC]?\b(?![\.\/])', line)
     if rwy_match:
         clean_rwy = rwy_match.group(0).replace('O', '0').upper()
         runway = f"RWY {clean_rwy} "
         
-    return f"{clean_facility} {runway}{test_desc}", test_desc
+    return f"{facility} {runway}{test_desc}", test_desc
 
 # --- 4. MEMO GENERATOR ---
 def create_overview_memo(translated_results):
@@ -281,6 +279,11 @@ def create_floor_briefing(translated_results):
     doc = Document()
     
     doc.add_heading('ZUA Flight Check - Floor Briefing', 0)
+    
+    p = doc.add_paragraph()
+    p.add_run("Aircraft Information:\n").bold = True
+    p.add_run("Type: Challenger 605/650 (CL600)\nRegistration: N90\nRun Speed: 180-200 knots")
+    
     doc.add_paragraph("_" * 50)
     
     grouped_data = defaultdict(lambda: defaultdict(list))
@@ -375,28 +378,23 @@ def create_floor_briefing(translated_results):
     doc.save(output_path)
     print(f"Success! Floor Briefing saved to: {output_path}")
 
-# --- 6. UNIVERSAL PROCESSING ENGINE ---
-def process_uploaded_file(filename):
-    print(f"Processing {filename}...")
-    file_path = os.path.join(INPUT_DIR, filename)
+# --- 6. FILTER & TRANSLATE ENGINE ---
+def extract_filter_and_translate(pdf_filename):
+    print(f"Opening {pdf_filename}...")
+    file_path = os.path.join(INPUT_DIR, pdf_filename)
+    doc = fitz.open(file_path)
     
     full_text = ""
+    print(f"Reading all {doc.page_count} pages... this might take a minute.")
     
-    if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
-        print("Detected image file. Running direct OCR...")
-        img = Image.open(file_path)
-        full_text = pytesseract.image_to_string(img)
-    else:
-        print("Detected PDF file. Reading pages...")
-        doc = fitz.open(file_path)
-        for i in range(doc.page_count):
-            page = doc.load_page(i)
-            pix = page.get_pixmap(dpi=200)
-            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-            full_text += pytesseract.image_to_string(img) + "\n"
+    for i in range(doc.page_count):
+        page = doc.load_page(i)
+        pix = page.get_pixmap(dpi=200)
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        full_text += pytesseract.image_to_string(img) + "\n"
         
     translated_results = []
-    current_date = "General Schedule"
+    current_date = "Unknown Date"
     
     for line in full_text.split('\n'):
         line = line.strip()
@@ -404,7 +402,7 @@ def process_uploaded_file(filename):
         if "Alternate Worklist" in line or "Task Remarks" in line:
             break
             
-        date_match = re.search(r'\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s\d{1,2}\s[A-Z][a-z]+\b', line)
+        date_match = re.match(r'^[A-Z][a-z]{2},\s\d{2}\s[A-Z][a-z]+', line)
         if date_match:
             current_date = date_match.group(0)
             continue

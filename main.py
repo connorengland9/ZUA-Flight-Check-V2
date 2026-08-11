@@ -23,7 +23,8 @@ OUTPUT_DIR = "Output"
 PHOTOS_DIR = "Photos"
 TEMPLATES_DIR = "Templates"
 
-ZUA_FACILITIES = ["PGUM", "PGUA", "PGRO", "PGWT", "PGSN", "AJA", "UNZ", "UAM", "GRO", "SN"]
+# Expanded facility list to catch shorthand names like "GUA" from screenshots
+ZUA_FACILITIES = ["PGUM", "PGUA", "PGRO", "PGWT", "PGSN", "AJA", "UNZ", "UAM", "GRO", "SN", "GUA"]
 
 # --- 2. TEST TYPES ---
 TEST_TYPES = {
@@ -198,13 +199,16 @@ def translate_operation(line, facility):
     if test_desc == "Unknown Testing":
         return None
         
+    # Normalize shorthand GUA to PGUA for clean reporting
+    clean_facility = "PGUA" if facility == "GUA" else facility
+    
     runway = ""
     rwy_match = re.search(r'(?<![\.\/])\b([0O][1-9]|[1-2][0-9]|3[0-6])[LRC]?\b(?![\.\/])', line)
     if rwy_match:
         clean_rwy = rwy_match.group(0).replace('O', '0').upper()
         runway = f"RWY {clean_rwy} "
         
-    return f"{facility} {runway}{test_desc}", test_desc
+    return f"{clean_facility} {runway}{test_desc}", test_desc
 
 # --- 4. MEMO GENERATOR ---
 def create_overview_memo(translated_results):
@@ -273,7 +277,7 @@ def create_overview_memo(translated_results):
     doc.save(output_path)
     print(f"Success! Memo saved to: {output_path}")
 
-# --- 5. IN-DEPTH BRIEFING GENERATOR (REMOVED AIRCRAFT BLOCK) ---
+# --- 5. IN-DEPTH BRIEFING GENERATOR ---
 def create_floor_briefing(translated_results):
     print("Generating Multi-Maneuver Floor Briefing with Diagrams...")
     doc = Document()
@@ -373,7 +377,7 @@ def create_floor_briefing(translated_results):
     doc.save(output_path)
     print(f"Success! Floor Briefing saved to: {output_path}")
 
-# --- 6. UNIVERSAL PROCESSING ENGINE (ROBUST DATE MATCHING FOR IMAGES) ---
+# --- 6. UNIVERSAL PROCESSING ENGINE (ROBUST SCREENSHOT SCANNING) ---
 def process_uploaded_file(filename):
     print(f"Processing {filename}...")
     file_path = os.path.join(INPUT_DIR, filename)
@@ -394,7 +398,7 @@ def process_uploaded_file(filename):
             full_text += pytesseract.image_to_string(img) + "\n"
         
     translated_results = []
-    current_date = "Unknown Date"
+    current_date = "General Schedule"
     
     for line in full_text.split('\n'):
         line = line.strip()
@@ -402,12 +406,13 @@ def process_uploaded_file(filename):
         if "Alternate Worklist" in line or "Task Remarks" in line:
             break
             
-        # FLEXIBLE DATE MATCHER: Captures standard dates even if preceded by extra characters or spacing in images
+        # Flexible date matcher for screenshots
         date_match = re.search(r'\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s\d{1,2}\s[A-Z][a-z]+\b', line)
         if date_match:
             current_date = date_match.group(0)
             continue
             
+        # Check if the line contains any recognized facility
         for facility in ZUA_FACILITIES:
             if re.search(rf'\b{facility}\b', line):
                 translation_data = translate_operation(line, facility)

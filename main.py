@@ -10,12 +10,12 @@ from docx.shared import Inches, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from collections import defaultdict 
 
-# --- TESSERACT SMART PATHFINDER ---
-tess_path = shutil.which("tesseract")
-if tess_path:
-    pytesseract.pytesseract.tesseract_cmd = tess_path
-elif os.name == 'nt':  
+# --- ROBUST TESSERACT PATH CONFIGURATION ---
+if os.name == 'nt':
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+else:
+    # Explicitly point to the Linux binary path on Streamlit Cloud
+    pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
 
 # --- 1. SETUP ---
 INPUT_DIR = "Input"
@@ -23,7 +23,6 @@ OUTPUT_DIR = "Output"
 PHOTOS_DIR = "Photos"
 TEMPLATES_DIR = "Templates"
 
-# Expanded facility list to catch shorthand names like "GUA" from screenshots
 ZUA_FACILITIES = ["PGUM", "PGUA", "PGRO", "PGWT", "PGSN", "AJA", "UNZ", "UAM", "GRO", "SN", "GUA"]
 
 # --- 2. TEST TYPES ---
@@ -199,7 +198,6 @@ def translate_operation(line, facility):
     if test_desc == "Unknown Testing":
         return None
         
-    # Normalize shorthand GUA to PGUA for clean reporting
     clean_facility = "PGUA" if facility == "GUA" else facility
     
     runway = ""
@@ -377,7 +375,7 @@ def create_floor_briefing(translated_results):
     doc.save(output_path)
     print(f"Success! Floor Briefing saved to: {output_path}")
 
-# --- 6. UNIVERSAL PROCESSING ENGINE (ROBUST SCREENSHOT SCANNING) ---
+# --- 6. UNIVERSAL PROCESSING ENGINE ---
 def process_uploaded_file(filename):
     print(f"Processing {filename}...")
     file_path = os.path.join(INPUT_DIR, filename)
@@ -406,13 +404,11 @@ def process_uploaded_file(filename):
         if "Alternate Worklist" in line or "Task Remarks" in line:
             break
             
-        # Flexible date matcher for screenshots
         date_match = re.search(r'\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s\d{1,2}\s[A-Z][a-z]+\b', line)
         if date_match:
             current_date = date_match.group(0)
             continue
             
-        # Check if the line contains any recognized facility
         for facility in ZUA_FACILITIES:
             if re.search(rf'\b{facility}\b', line):
                 translation_data = translate_operation(line, facility)

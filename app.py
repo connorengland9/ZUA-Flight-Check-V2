@@ -20,12 +20,12 @@ page_bg_css = """
     color: #ffffff;
 }
 
-/* Ensure text remains visible against the dark background */
+/* Ensure general text remains visible against the dark background */
 h1, h2, h3, p, .stText {
     color: #ffffff !important;
 }
 
-/* Center the File Uploader */
+/* Center the File Uploader and style the box */
 [data-testid="stFileUploader"] {
     width: 100%;
     display: flex;
@@ -35,8 +35,11 @@ h1, h2, h3, p, .stText {
     border-radius: 10px;
     padding: 10px;
 }
-[data-testid="stFileDropzoneInstructions"] {
-    color: #ffffff !important;
+
+/* Target all text inside the uploader dropzone and make it light blue */
+[data-testid="stFileUploadDropzone"] *, 
+[data-testid="stFileUploaderDropzoneInstructions"] * {
+    color: #87CEFA !important;
 }
 
 /* Center the primary Generate button */
@@ -45,10 +48,22 @@ h1, h2, h3, p, .stText {
     display: block;
 }
 
-/* Center the download buttons */
+/* Center and style the download buttons in light blue */
 .stDownloadButton > button {
     margin: 0 auto;
     display: block;
+    color: #87CEFA !important;
+    border-color: #87CEFA !important;
+}
+.stDownloadButton > button p {
+    color: #87CEFA !important;
+}
+
+/* Add a hover effect so download buttons turn white when moused over */
+.stDownloadButton > button:hover, 
+.stDownloadButton > button:hover p {
+    color: #ffffff !important;
+    border-color: #ffffff !important;
 }
 </style>
 """

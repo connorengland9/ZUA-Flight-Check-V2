@@ -273,17 +273,12 @@ def create_overview_memo(translated_results):
     doc.save(output_path)
     print(f"Success! Memo saved to: {output_path}")
 
-# --- 5. IN-DEPTH BRIEFING GENERATOR ---
+# --- 5. IN-DEPTH BRIEFING GENERATOR (REMOVED AIRCRAFT BLOCK) ---
 def create_floor_briefing(translated_results):
     print("Generating Multi-Maneuver Floor Briefing with Diagrams...")
     doc = Document()
     
     doc.add_heading('ZUA Flight Check - Floor Briefing', 0)
-    
-    p = doc.add_paragraph()
-    p.add_run("Aircraft Information:\n").bold = True
-    p.add_run("Type: Challenger 605/650 (CL600)\nRegistration: N90\nRun Speed: 180-200 knots")
-    
     doc.add_paragraph("_" * 50)
     
     grouped_data = defaultdict(lambda: defaultdict(list))
@@ -378,14 +373,13 @@ def create_floor_briefing(translated_results):
     doc.save(output_path)
     print(f"Success! Floor Briefing saved to: {output_path}")
 
-# --- 6. UNIVERSAL PROCESSING ENGINE (HANDLES BOTH PDFS & IMAGES) ---
+# --- 6. UNIVERSAL PROCESSING ENGINE (ROBUST DATE MATCHING FOR IMAGES) ---
 def process_uploaded_file(filename):
     print(f"Processing {filename}...")
     file_path = os.path.join(INPUT_DIR, filename)
     
     full_text = ""
     
-    # Check if the uploaded file is an image or a PDF
     if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
         print("Detected image file. Running direct OCR...")
         img = Image.open(file_path)
@@ -408,7 +402,8 @@ def process_uploaded_file(filename):
         if "Alternate Worklist" in line or "Task Remarks" in line:
             break
             
-        date_match = re.match(r'^[A-Z][a-z]{2},\s\d{2}\s[A-Z][a-z]+', line)
+        # FLEXIBLE DATE MATCHER: Captures standard dates even if preceded by extra characters or spacing in images
+        date_match = re.search(r'\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s\d{1,2}\s[A-Z][a-z]+\b', line)
         if date_match:
             current_date = date_match.group(0)
             continue

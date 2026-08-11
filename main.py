@@ -42,7 +42,7 @@ TEST_TYPES = {
     "NDBH/N": "NDB Check"
 }
 
-# --- 3. ADVANCED MANEUVER MAPPING (UPDATED FOR ATC AUDIENCE) ---
+# --- 3. ADVANCED MANEUVER MAPPING ---
 MANEUVERS_MAP = {
     "ILS Localizer testing": [
         {
@@ -378,20 +378,26 @@ def create_floor_briefing(translated_results):
     doc.save(output_path)
     print(f"Success! Floor Briefing saved to: {output_path}")
 
-# --- 6. FILTER & TRANSLATE ENGINE ---
-def extract_filter_and_translate(pdf_filename):
-    print(f"Opening {pdf_filename}...")
-    file_path = os.path.join(INPUT_DIR, pdf_filename)
-    doc = fitz.open(file_path)
+# --- 6. UNIVERSAL PROCESSING ENGINE (HANDLES BOTH PDFS & IMAGES) ---
+def process_uploaded_file(filename):
+    print(f"Processing {filename}...")
+    file_path = os.path.join(INPUT_DIR, filename)
     
     full_text = ""
-    print(f"Reading all {doc.page_count} pages... this might take a minute.")
     
-    for i in range(doc.page_count):
-        page = doc.load_page(i)
-        pix = page.get_pixmap(dpi=200)
-        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-        full_text += pytesseract.image_to_string(img) + "\n"
+    # Check if the uploaded file is an image or a PDF
+    if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+        print("Detected image file. Running direct OCR...")
+        img = Image.open(file_path)
+        full_text = pytesseract.image_to_string(img)
+    else:
+        print("Detected PDF file. Reading pages...")
+        doc = fitz.open(file_path)
+        for i in range(doc.page_count):
+            page = doc.load_page(i)
+            pix = page.get_pixmap(dpi=200)
+            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            full_text += pytesseract.image_to_string(img) + "\n"
         
     translated_results = []
     current_date = "Unknown Date"

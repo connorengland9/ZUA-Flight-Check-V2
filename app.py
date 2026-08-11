@@ -9,61 +9,70 @@ page_bg_css = """
 <style>
 /* Custom Black Background with Cross-Hatch and Diagonal "CE" */
 .stApp {
-    background-color: #0b0b0b;
-    background-image: url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg stroke='rgba(255,255,255,0.04)' stroke-width='1'%3E%3Cpath d='M0 0l120 120M120 0L0 120'/%3E%3C/g%3E%3Ctext x='60' y='68' font-family='Georgia, serif' font-size='24' font-style='italic' font-weight='bold' fill='rgba(255,255,255,0.06)' text-anchor='middle' transform='rotate(-45 60 60)'%3ECE%3C/text%3E%3C/g%3E%3C/svg%3E");
-    background-repeat: repeat;
+    background-color: #0b0b0b !important;
+    background-image: url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg stroke='rgba(255,255,255,0.04)' stroke-width='1'%3E%3Cpath d='M0 0l120 120M120 0L0 120'/%3E%3C/g%3E%3Ctext x='60' y='68' font-family='Georgia, serif' font-size='24' font-style='italic' font-weight='bold' fill='rgba(255,255,255,0.06)' text-anchor='middle' transform='rotate(-45 60 60)'%3ECE%3C/text%3E%3C/g%3E%3C/svg%3E") !important;
+    background-repeat: repeat !important;
 }
 
 /* Center all main text and headers */
 .block-container {
     text-align: center;
-    color: #ffffff;
 }
 
-/* Ensure general text remains visible against the dark background */
-h1, h2, h3, p, .stText {
+/* Force standard text to white so it doesn't turn black in Light Mode */
+h1, h2, h3, p {
     color: #ffffff !important;
 }
 
-/* Center the File Uploader and style the box */
-[data-testid="stFileUploader"] {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background-color: rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
-    padding: 10px;
+/* --- UPLOADER BOX OVERRIDE --- */
+/* Force the drag-and-drop box to have a dark background and Light Blue dashed border */
+[data-testid="stFileUploadDropzone"] {
+    background-color: #1a1a1a !important;
+    border: 2px dashed #87CEFA !important;
+    border-radius: 10px !important;
 }
 
-/* Target all text inside the uploader dropzone and make it light blue */
-[data-testid="stFileUploadDropzone"] *, 
-[data-testid="stFileUploaderDropzoneInstructions"] * {
+/* Force ALL text inside the uploader (including the 200MB limit) to Light Blue */
+[data-testid="stFileUploader"] * {
     color: #87CEFA !important;
+}
+
+/* Style the 'Browse files' button inside the uploader */
+[data-testid="stFileUploader"] button {
+    background-color: transparent !important;
+    border: 1px solid #87CEFA !important;
+}
+[data-testid="stFileUploader"] button:hover {
+    background-color: #87CEFA !important;
+}
+[data-testid="stFileUploader"] button:hover * {
+    color: #0b0b0b !important;
+}
+
+/* --- DOWNLOAD BUTTONS OVERRIDE --- */
+/* Center and style the download buttons */
+[data-testid="stDownloadButton"] > button {
+    margin: 0 auto;
+    display: block;
+    background-color: transparent !important;
+    border: 2px solid #87CEFA !important;
+}
+[data-testid="stDownloadButton"] > button * {
+    color: #87CEFA !important;
+}
+
+/* Hover effect for download buttons */
+[data-testid="stDownloadButton"] > button:hover {
+    background-color: #87CEFA !important;
+}
+[data-testid="stDownloadButton"] > button:hover * {
+    color: #0b0b0b !important; /* Changes text to dark when hovered */
 }
 
 /* Center the primary Generate button */
 .stButton > button {
     margin: 0 auto;
     display: block;
-}
-
-/* Center and style the download buttons in light blue */
-.stDownloadButton > button {
-    margin: 0 auto;
-    display: block;
-    color: #87CEFA !important;
-    border-color: #87CEFA !important;
-}
-.stDownloadButton > button p {
-    color: #87CEFA !important;
-}
-
-/* Add a hover effect so download buttons turn white when moused over */
-.stDownloadButton > button:hover, 
-.stDownloadButton > button:hover p {
-    color: #ffffff !important;
-    border-color: #ffffff !important;
 }
 </style>
 """
@@ -87,7 +96,6 @@ if uploaded_file is not None:
     if generate_pressed:
         with st.spinner("Processing PDF and generating documents... This might take a minute."):
             
-            # Automatically create the Input and Output folders if they are missing
             os.makedirs(main.INPUT_DIR, exist_ok=True)
             os.makedirs(main.OUTPUT_DIR, exist_ok=True)
             

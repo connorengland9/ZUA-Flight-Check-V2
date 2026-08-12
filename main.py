@@ -23,7 +23,7 @@ OUTPUT_DIR = "Output"
 PHOTOS_DIR = "Photos"
 TEMPLATES_DIR = "Templates"
 
-ZUA_FACILITIES = ["PGUM", "PGUA", "PGRO", "PGWT", "PGSN", "AJA", "UNZ", "UAM", "GRO", "SN"]
+ZUA_FACILITIES = ["PGUM", "PGUA", "PGRO", "PGWT", "PGSN", "AJA", "UNZ", "UAM", "GRO", "SN", "GUA", "GSN", "PMY"]
 
 # --- 2. TEST TYPES ---
 TEST_TYPES = {
@@ -39,7 +39,8 @@ TEST_TYPES = {
     "VTAC/V": "VOR + TAC Align Orbit",
     "VTAC/T": "VOR + TAC Radial testing",
     "APL/": "Runway Lighting testing",
-    "NDBH/N": "NDB Check"
+    "NDBH/N": "NDB Check",
+    "NDBH/D": "NDB Check"
 }
 
 # --- 3. ADVANCED MANEUVER MAPPING ---
@@ -185,6 +186,19 @@ MANEUVERS_MAP = {
     ]
 }
 
+def extract_runway(line):
+    clean = re.sub(r'^[\s\*\-\|]*\d+\b', '', line.strip())
+    clean = re.sub(r'\b\d{1,2}/\d{1,2}/\d{2,4}\b', '', clean)
+    clean = re.sub(r'[A-Z0-9]{2}-\d{2}-\d{3}-\d{2}', '', clean)
+    clean = re.sub(r'\b\d{2}:\d{2}Z?\b', '', clean)
+    
+    match = re.search(r'(?<![\.\d])([0O][1-9]|[1-2][0-9]|3[0-6])\s*([LRC1I\|])?\b', clean, re.IGNORECASE)
+    if match:
+        num = match.group(1).replace('O', '0').replace('o', '0')
+        let = (match.group(2) or "").upper().replace('1', 'L').replace('I', 'L').replace('|', 'L')
+        return f"RWY {num}{let} "
+    return ""
+
 def translate_operation(line, facility):
     if "Arrive At" in line or "ROTM" in line or "FUTENMA" in line:
         return None
@@ -198,15 +212,16 @@ def translate_operation(line, facility):
     if test_desc == "Unknown Testing":
         return None
         
-    runway = ""
-    rwy_match = re.search(r'(?<![\.\/])\b([0O][1-9]|[1-2][0-9]|3[0-6])[LRC]?\b(?![\.\/])', line)
-    if rwy_match:
-        clean_rwy = rwy_match.group(0).replace('O', '0').upper()
-        runway = f"RWY {clean_rwy} "
+    clean_facility = facility
+    if facility in ["GUA", "PMY"]:
+        clean_facility = "PGUA"
+    elif facility == "GSN":
+        clean_facility = "PGSN"
+    
+    runway = extract_runway(line)
         
-    return f"{facility} {runway}{test_desc}", test_desc
+    return f"{clean_facility} {runway}{test_desc}", test_desc
 
-# --- 4. MEMO GENERATOR ---
 def create_overview_memo(translated_results):
     print("Generating official ZUA Overview Memo...")
     template_path = os.path.join(TEMPLATES_DIR, "ZUA Blank Memo.docx")
@@ -273,7 +288,6 @@ def create_overview_memo(translated_results):
     doc.save(output_path)
     print(f"Success! Memo saved to: {output_path}")
 
-# --- 5. IN-DEPTH BRIEFING GENERATOR ---
 def create_floor_briefing(translated_results):
     print("Generating Multi-Maneuver Floor Briefing with Diagrams...")
     doc = Document()
@@ -373,27 +387,46 @@ def create_floor_briefing(translated_results):
     doc.save(output_path)
     print(f"Success! Floor Briefing saved to: {output_path}")
 
-# --- 6. FILTER & TRANSLATE ENGINE (STABLE PDF OCR) ---
 def extract_filter_and_translate(pdf_filename):
     print(f"Opening {pdf_filename}...")
     file_path = os.path.join(INPUT_DIR, pdf_filename)
     doc = fitz.open(file_path)
     
     full_text = ""
-    print(f"Reading all {doc.page_count} pages...")
+    print(f"Reading all {doc.page_count} pages with OCR...")
     
     for i in range(doc.page_count):
         page = doc.load_page(i)
         pix = page.get_pixmap(dpi=200)
         img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-        full_text += pytesseract.image_to_string(img) + "\n"
+        full_text += pytesseract.image_to_string(img, config='--psm 6') + "\n"
         
+    merged_lines = []
+    for line in full_text.split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+            
+        if "Alternate Worklist" in line or "Task Remarks" in line:
+            merged_lines.append(line)
+            break
+            
+        is_date = re.match(r'^[A-Z][a-z]{2},\s\d{2}\s[A-Z][a-z]+', line)
+        is_seq = re.match(r'^[\s\*\-\|]*\d+\b', line)
+        is_action = "Arrive At" in line or "End Point" in line or "Start Point" in line
+        
+        if is_date or is_seq or is_action:
+            merged_lines.append(line)
+        else:
+            if merged_lines:
+                merged_lines[-1] += " " + line
+            else:
+                merged_lines.append(line)
+                
     translated_results = []
     current_date = "Unknown Date"
     
-    for line in full_text.split('\n'):
-        line = line.strip()
-        
+    for line in merged_lines:
         if "Alternate Worklist" in line or "Task Remarks" in line:
             break
             
